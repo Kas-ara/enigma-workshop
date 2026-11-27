@@ -15,11 +15,11 @@ export function createLiveInput(
   let active: ActiveKey | null = null;
 
   function press(key: ActiveKey) {
-    if (!enabled || active) return false;
+    if (!enabled) return false;
+    if (key.letter === ' ') return accept(key.letter);
+    if (active || !accept(key.letter)) return false;
     active = key;
-    if (accept(key.letter)) return true;
-    active = null;
-    return false;
+    return true;
   }
 
   function release() {
@@ -46,8 +46,14 @@ export function createLiveInput(
     if (!(target instanceof HTMLElement)) return;
     if (target !== transcript && (target.isContentEditable || target.closest('input, textarea, select'))) return;
     const button = keyButton(target);
-    const letter = button && (event.key === 'Enter' || event.key === ' ')
-      ? button.dataset.key : /^[a-z]$/i.test(event.key) ? event.key.toUpperCase() : undefined;
+    let letter: string | undefined;
+    if (button && (event.key === 'Enter' || event.key === ' ')) {
+      letter = button.dataset.key;
+    } else if (event.key === ' ' && !target.closest('button, [role="button"]')) {
+      letter = ' ';
+    } else if (/^[a-z]$/i.test(event.key)) {
+      letter = event.key.toUpperCase();
+    }
     if (!letter) return;
 
     event.preventDefault();
@@ -63,8 +69,9 @@ export function createLiveInput(
     const letter = button?.dataset.key;
     if (!button || !letter || event.button !== 0) return;
     if (press({ source: 'pointer', id: event.pointerId, letter })) {
-      button.focus({ preventScroll: true });
-      button.setPointerCapture(event.pointerId);
+      // A pointer key sends the next physical keystroke back to the transcript.
+      transcript.focus({ preventScroll: true });
+      if (letter !== ' ') button.setPointerCapture(event.pointerId);
       event.preventDefault();
     }
   });
@@ -76,7 +83,7 @@ export function createLiveInput(
   keyboard.addEventListener('click', (event) => {
     const letter = keyButton(event.target)?.dataset.key;
     // Assistive activation commands can deliver a click without a press and release.
-    if (event.detail === 0 && letter && press({ source: 'activation', id: letter, letter })) {
+    if (event.detail === 0 && letter && press({ source: 'activation', id: letter, letter }) && letter !== ' ') {
       window.setTimeout(() => releaseMatching('activation', letter), 180);
     }
   });

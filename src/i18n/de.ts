@@ -30,6 +30,8 @@ export const de = {
   live: "Live",
   clearLive: "Nachricht löschen",
   liveHint: "Halten Sie eine Buchstabentaste auf Ihrer Tastatur oder in der 2D-Ansicht gedrückt. Beim Loslassen erlischt die Lampe. Esc beendet den Live-Modus.",
+  spaceKey: "Leerzeichen",
+  liveNormalization: "Leerzeichen trennen Wörter. Nur Buchstaben lassen die Rotoren weiterlaufen.",
   liveProgress: "{input} → {output} · {total} verarbeitet",
   scene: "3D-Ansicht",
   operator: "Bedienung",

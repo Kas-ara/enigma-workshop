@@ -2,7 +2,7 @@ import './style.css';
 import * as engine from '../engine/enigma';
 import { type Contact, type ModelId, type Reflector, type Settings, type State, type Trace } from '../engine/enigma';
 import { localize, t, type MessageKey } from '../i18n';
-import { normalize } from './normalize';
+import { normalize, withWordSpaces } from './normalize';
 import { keyboardRows } from '../engine/models/service';
 import { createLiveInput } from './live-input';
 import type { MachineScene } from '../scene3d/machine';
@@ -189,6 +189,13 @@ function initializeBoard() {
     $('lampboard').append(lampRow);
     keyboard.append(keyRow);
   }
+  const space = el('button', 'board-key board-space');
+  space.id = 'live-space';
+  space.type = 'button';
+  space.dataset.key = ' ';
+  space.dataset.l10n = 'spaceKey';
+  keys.set(' ', space);
+  keyboard.append(space);
 }
 
 function contactTitle({ stage, label }: Contact): string {
@@ -313,7 +320,7 @@ function applyProgress(message: string, result: { state: State; output: string; 
   lit = result.trace;
   cursor += 1;
   processed += result.output;
-  output.value = processed;
+  output.value = live ? withWordSpaces(input.value, processed) : processed;
   displayFeedback = live
     ? { key: 'liveProgress', vars: { input: result.trace.input, output: result.output, total: cursor } }
     : { key: 'progress', vars: { current: cursor, total: message.length } };
@@ -354,8 +361,13 @@ function togglePlay() {
   updateControls();
 }
 
-function appendLiveLetter(letter: string) {
+function appendLiveCharacter(letter: string) {
   if (!live || input.value.length >= input.maxLength) return false;
+  if (letter === ' ') {
+    input.value += letter;
+    output.value = withWordSpaces(input.value, processed);
+    return true;
+  }
   const state = prepare(letter);
   if (!state) return false;
   const existing = normalize(input.value);
@@ -368,17 +380,19 @@ function appendLiveLetter(letter: string) {
   return true;
 }
 
-const liveInput = createLiveInput(workshop, keyboard, input, appendLiveLetter, turnOffLamp);
+const liveInput = createLiveInput(workshop, keyboard, input, appendLiveCharacter, turnOffLamp);
 
 function renderLive() {
   $('live-toggle').setAttribute('aria-pressed', String(live));
   $('live-hint').textContent = live ? t('liveHint') : '';
   $('live-toolbar').hidden = !live;
   input.readOnly = live;
-  if (live) input.setAttribute('aria-keyshortcuts', 'Escape');
+  if (live) input.setAttribute('aria-keyshortcuts', 'Escape Space');
   else input.removeAttribute('aria-keyshortcuts');
   input.setAttribute('aria-describedby', live ? 'live-hint normalization' : 'normalization');
   for (const key of keys.values()) key.disabled = !live;
+  $('live-space').hidden = !live;
+  $('normalization').textContent = t(live ? 'liveNormalization' : 'normalization');
   updateControls();
 }
 
@@ -389,7 +403,10 @@ function setLive(value: boolean) {
   live = value;
   renderLive();
   turnOffLamp();
-  if (value) input.focus({ preventScroll: true });
+  if (value) {
+    output.value = withWordSpaces(input.value, processed);
+    input.focus({ preventScroll: true });
+  }
 }
 
 function setLanguage(value: string) {
@@ -519,9 +536,10 @@ $('example').addEventListener('click', () => {
 });
 $('reverse').addEventListener('click', () => {
   setLive(false);
-  input.value = processed;
+  input.value = output.value;
   setMode(mode === 'encode' ? 'decode' : 'encode');
   run();
+  output.value = withWordSpaces(input.value, processed);
 });
 $('copy').addEventListener('click', async () => {
   try {

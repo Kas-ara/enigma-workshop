@@ -26,7 +26,7 @@ python3 -m http.server 8724 --bind 127.0.0.1 --directory dist
 - Turn on **Live**, then hold a physical letter key or a key on the 2D machine. The output letter lights until you release the key. Holding a key produces one letter. Use **Esc** to leave Live and return to message controls such as **One letter**.
 - In **History**, load the opening of the example from the 1930 manual or a naval M4 message from U-264. Sources are linked from the timeline and listed in [Credits](docs/CREDITS.md).
 
-The editor normalizes letters to A–Z and skips punctuation, spaces and digits. Text is processed in the browser. Language, palette and the 2D/3D choice are the only persistent preferences. The simulator assumes the starting key is known and processes the body of a message.
+The editor normalizes letters to A–Z and skips punctuation and digits. Live keeps spaces in both transcripts without stepping the rotors. Text is processed in the browser. Language, palette and the 2D/3D choice are the only persistent preferences. The simulator assumes the starting key is known and processes the body of a message.
 
 ## Validate and build
 

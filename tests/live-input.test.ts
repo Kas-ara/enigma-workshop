@@ -81,3 +81,25 @@ test('focus loss and disabling Live clear held keys', () => {
   keyboard(transcript, 'keydown', 'a');
   expect(accepted.mock.calls).toEqual([['A'], ['B']]);
 });
+
+test('physical Space separates words even during a held letter', () => {
+  keyboard(transcript, 'keydown', 'a');
+  expect(keyboard(transcript, 'keydown', ' ', { code: 'Space' })).toBe(false);
+  keyboard(transcript, 'keydown', ' ', { code: 'Space', repeat: true });
+  keyboard(transcript, 'keyup', ' ', { code: 'Space' });
+  expect(accepted.mock.calls).toEqual([['A'], [' ']]);
+  expect(released).not.toHaveBeenCalled();
+  keyboard(transcript, 'keyup', 'a');
+  expect(released).toHaveBeenCalledOnce();
+});
+
+test('the on-screen spacebar keeps focus ready for the physical keyboard', () => {
+  const space = document.createElement('button');
+  space.dataset.key = ' ';
+  key.parentElement!.append(space);
+  space.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 4, button: 0, bubbles: true }));
+  expect(document.activeElement).toBe(transcript);
+  expect(accepted.mock.calls).toEqual([[' ']]);
+  space.dispatchEvent(new PointerEvent('pointerup', { pointerId: 4, bubbles: true }));
+  expect(released).not.toHaveBeenCalled();
+});

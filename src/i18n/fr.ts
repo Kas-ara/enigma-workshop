@@ -30,6 +30,8 @@ export const fr = {
   live: "En direct",
   clearLive: "Effacer le message",
   liveHint: "Maintenez une lettre de votre clavier ou une touche en 2D. La lampe s’éteint au relâchement. Échap quitte le mode direct.",
+  spaceKey: "Espace",
+  liveNormalization: "Les espaces séparent les mots. Seules les lettres font avancer les rotors.",
   liveProgress: "{input} → {output} · {total} traité(s)",
   scene: "Vue 3D",
   operator: "Opérateur",

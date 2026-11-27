@@ -28,6 +28,8 @@ export const en = {
   live: "Live",
   clearLive: "Clear message",
   liveHint: "Hold a letter on your keyboard, or a key in the 2D view. The lamp goes out on release. Esc exits Live.",
+  spaceKey: "Space",
+  liveNormalization: "Spaces separate words. Only letters move the rotors.",
   liveProgress: "{input} → {output} · {total} processed",
   scene: "3D view",
   operator: "Operator",
