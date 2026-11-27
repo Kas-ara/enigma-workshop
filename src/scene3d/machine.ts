@@ -1,7 +1,7 @@
 import {
   AmbientLight, BoxGeometry, CanvasTexture, Color, CylinderGeometry, DirectionalLight, Group,
   Mesh, MeshBasicMaterial, MeshStandardMaterial, OrthographicCamera, PlaneGeometry, Scene,
-  SRGBColorSpace, WebGLRenderer, type BufferGeometry, type Material,
+  SRGBColorSpace, Texture, WebGLRenderer, type BufferGeometry, type Material,
 } from 'three';
 import { keyboardRows, type ModelId } from '../engine/models/service';
 
@@ -20,6 +20,7 @@ export interface MachineScene {
   explode(value: boolean): void;
   rotate(direction: number): void;
   reset(): void;
+  dispose(): void;
 }
 
 const TAU = 2 * Math.PI;
@@ -36,9 +37,9 @@ function texture(width: number, height: number, draw: (ctx: CanvasRenderingConte
   return map;
 }
 
-function ink(text: string, width = 128, height = 128) {
+function ink(text: string, width = 128, height = 128, color = '#f1dfb5') {
   return texture(width, height, (ctx) => {
-    ctx.fillStyle = '#f1dfb5';
+    ctx.fillStyle = color;
     ctx.font = '600 ' + Math.floor(height * 0.64) + 'px ui-monospace, monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -150,8 +151,10 @@ export function createMachineScene(canvas: HTMLCanvasElement): MachineScene | nu
   machine.add(keys, lamps);
   box(keys, black, 0, 0.17, 1.36, 4.83, 0.14, 1.65);
   box(lamps, steel, 0, 0.18, -0.22, 4.83, 0.15, 1.50);
-  const keysByLetter = new Map<string, { group: Group; cap: Mesh }>();
-  const lampsByLetter = new Map<string, Mesh>();
+  const faces = new Map<string, {
+    key: Group; cap: Mesh; bulb: Mesh; keyLabel: Mesh; lampLabel: Mesh;
+    glyph: MeshBasicMaterial; activeGlyph: MeshBasicMaterial;
+  }>();
   for (const [rowIndex, row] of keyboardRows.entries()) {
     for (const [column, letter] of [...row].entries()) {
       const x = (column - (row.length - 1) / 2) * 0.45;
@@ -160,17 +163,20 @@ export function createMachineScene(canvas: HTMLCanvasElement): MachineScene | nu
       key.position.set(x, 0, 0.93 + rowIndex * 0.45);
       cylinder(key, rim, 0, 0.278, 0, 0.160, 0.082);
       const cap = cylinder(key, keyTop, 0, 0.323, 0, 0.127, 0.022);
-      const glyph = new MeshBasicMaterial({ map: ink(letter), transparent: true, depthWrite: false });
+      const glyph = new MeshBasicMaterial({
+        map: ink(letter, 128, 128, '#fff'), color: '#f1dfb5', transparent: true, depthWrite: false,
+      });
+      const activeGlyph = glyph.clone();
+      activeGlyph.color.set('#211b13');
       const keyLabel = part(key, new PlaneGeometry(0.205, 0.205), glyph, 0, 0.336, 0);
       keyLabel.rotateX(-Math.PI / 2);
-      keysByLetter.set(letter, { group: key, cap });
 
       const z = -0.57 + rowIndex * 0.37;
       cylinder(lamps, rim, x, 0.261, z, 0.146, 0.037);
       const bulb = cylinder(lamps, lampOff, x, 0.282, z, 0.113, 0.019);
       const lampLabel = part(lamps, new PlaneGeometry(0.207, 0.207), glyph, x, 0.294, z);
       lampLabel.rotateX(-Math.PI / 2);
-      lampsByLetter.set(letter, bulb);
+      faces.set(letter, { key, cap, bulb, keyLabel, lampLabel, glyph, activeGlyph });
     }
   }
 
@@ -248,12 +254,15 @@ export function createMachineScene(canvas: HTMLCanvasElement): MachineScene | nu
       }
     }
     const moment = 1 - ease(rotorProgress);
-    for (const [letter, { group, cap }] of keysByLetter) {
+    for (const [letter, { key, cap, bulb, keyLabel, lampLabel, glyph, activeGlyph }] of faces) {
       const pressed = state?.input === letter;
-      group.position.y = pressed ? -(0.028 + 0.063 * moment) : 0;
+      const lit = state?.output === letter;
+      key.position.y = pressed ? -(0.028 + 0.063 * moment) : 0;
       cap.material = pressed ? hot : keyTop;
+      keyLabel.material = pressed ? activeGlyph : glyph;
+      bulb.material = lit ? hot : lampOff;
+      lampLabel.material = lit ? activeGlyph : glyph;
     }
-    for (const [letter, bulb] of lampsByLetter) bulb.material = state?.output === letter ? hot : lampOff;
 
     const radius = 11;
     const lookAtY = 0.72 + 0.29 * separation;
@@ -276,15 +285,18 @@ export function createMachineScene(canvas: HTMLCanvasElement): MachineScene | nu
     renderer.setSize(width, height, false);
     schedule();
   }
-  new ResizeObserver(resize).observe(canvas);
-  reduced.addEventListener('change', schedule);
+  const observer = new ResizeObserver(resize);
+  observer.observe(canvas);
+  const events = new AbortController();
+  const options = { signal: events.signal };
+  reduced.addEventListener('change', schedule, options);
 
   let pointer: { id: number; x: number; y: number } | null = null;
   canvas.addEventListener('pointerdown', (event) => {
     if (pointer || event.button !== 0) return;
     canvas.setPointerCapture(event.pointerId);
     pointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
-  });
+  }, options);
   canvas.addEventListener('pointermove', (event) => {
     if (pointer?.id !== event.pointerId) return;
     yaw += (event.clientX - pointer.x) * 0.012;
@@ -292,8 +304,8 @@ export function createMachineScene(canvas: HTMLCanvasElement): MachineScene | nu
     pointer.x = event.clientX;
     pointer.y = event.clientY;
     schedule();
-  });
-  canvas.addEventListener('lostpointercapture', () => { pointer = null; });
+  }, options);
+  canvas.addEventListener('lostpointercapture', () => { pointer = null; }, options);
 
   resize();
   return {
@@ -333,5 +345,30 @@ export function createMachineScene(canvas: HTMLCanvasElement): MachineScene | nu
     },
     rotate(direction) { yaw += direction * 0.40; schedule(); },
     reset() { yaw = DEFAULT_YAW; pitch = DEFAULT_PITCH; schedule(); },
+    dispose() {
+      if (events.signal.aborted) return;
+      events.abort();
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+      if (pointer && canvas.hasPointerCapture(pointer.id)) canvas.releasePointerCapture(pointer.id);
+      pointer = null;
+
+      const geometries = new Set<BufferGeometry>();
+      const materials = new Set<Material>([hot, keyTop, lampOff]);
+      const textures = new Set<Texture>(positionTextures.values());
+      for (const { glyph, activeGlyph } of faces.values()) materials.add(glyph).add(activeGlyph);
+      scene.traverse((object) => {
+        if (!(object instanceof Mesh)) return;
+        geometries.add(object.geometry);
+        for (const material of [object.material].flat()) materials.add(material);
+      });
+      for (const geometry of geometries) geometry.dispose();
+      for (const material of materials) {
+        if ('map' in material && material.map instanceof Texture) textures.add(material.map);
+        material.dispose();
+      }
+      for (const map of textures) map.dispose();
+      renderer.dispose();
+    },
   };
 }

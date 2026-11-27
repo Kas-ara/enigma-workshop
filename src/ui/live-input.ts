@@ -10,6 +10,7 @@ export function createLiveInput(
   transcript: HTMLTextAreaElement,
   accept: (letter: string) => boolean,
   onRelease: () => void,
+  onExit: () => void,
 ) {
   let enabled = false;
   let active: ActiveKey | null = null;
@@ -40,8 +41,13 @@ export function createLiveInput(
     return event.code && event.code !== 'Unidentified' ? event.code : event.key.toUpperCase();
   }
 
-  workshop.addEventListener('keydown', (event) => {
+  document.addEventListener('keydown', (event) => {
     if (!enabled || event.defaultPrevented || event.isComposing || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      onExit();
+      return;
+    }
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
     if (target !== transcript && (target.isContentEditable || target.closest('input, textarea, select'))) return;
@@ -49,7 +55,7 @@ export function createLiveInput(
     let letter: string | undefined;
     if (button && (event.key === 'Enter' || event.key === ' ')) {
       letter = button.dataset.key;
-    } else if (event.key === ' ' && !target.closest('button, [role="button"]')) {
+    } else if (event.key === ' ' && (target === transcript || target === document.body)) {
       letter = ' ';
     } else if (/^[a-z]$/i.test(event.key)) {
       letter = event.key.toUpperCase();

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { alphabet, createState, defaults, encodeText, models, rotorOptions, step, type ModelId, type Settings } from '../src/engine/enigma';
+import { alphabet, createState, defaults, encodeText, models, rotorOptions, SettingsError, step, type ModelId, type Settings } from '../src/engine/enigma';
 import { normalize } from '../src/ui/normalize';
 
 const transform = (settings: Settings, message: string) => encodeText(createState(settings), message).output;
@@ -88,6 +88,7 @@ test('reciprocity and no self-encryption across 60 reproducible configurations',
 test('normalization remains a UI policy', () => {
   expect(normalize('À l’aube, cœur et cæcum ! 123')).toBe('ALAUBECOEURETCAECUM');
   expect(normalize('Grüße aus Köln')).toBe('GRUSSEAUSKOLN');
+  expect(normalize('Łódź, Øl, groẞ')).toBe('LODZOLGROSS');
   expect(() => encodeText(createState(defaults('I')), 'A!')).toThrow('key');
 });
 
@@ -111,4 +112,28 @@ test('the trace runs from key to lamp without mutating the original state', () =
   expect(trace.path[0].from).toBe(trace.input);
   expect(trace.path.at(-1)?.to).toBe(trace.output);
   for (let i = 1; i < trace.path.length; i += 1) expect(trace.path[i - 1].to).toBe(trace.path[i].from);
+});
+
+test.each(['β', 'γ'])('double stepping leaves the M4 Greek rotor %s stationary', (greek) => {
+  let state = createState({ ...defaults('M4'), wheels: [greek, 'I', 'II', 'III'], positions: [...'ZADU'] });
+  const positions = Array.from({ length: 4 }, () => {
+    const result = step(state, 'A', true);
+    state = result.state;
+    return result.trace.positions.join('');
+  });
+  expect(positions).toEqual(['ZADV', 'ZAEW', 'ZBFX', 'ZBFY']);
+});
+
+test('the plugboard accepts 13 disjoint pairs and rejects a fourteenth', () => {
+  const plugs = 'AB CD EF GH IJ KL MN OP QR ST UV WX YZ';
+  expect(() => createState({ ...defaults('I'), plugs })).not.toThrow();
+  expect(() => createState({ ...defaults('I'), plugs: plugs + ' AB' })).toThrow('plugCount');
+});
+
+test('the engine identifies incompatible and repeated rotor slots', () => {
+  expect(() => createState({ ...defaults('I'), wheels: ['VI', 'II', 'III'] }))
+    .toThrow(expect.objectContaining({ code: 'rotors', rotorSlots: [0] }));
+  expect(() => createState({ ...defaults('I'), wheels: ['I', 'I', 'III'] }))
+    .toThrow(expect.objectContaining({ code: 'rotors', rotorSlots: [0, 1] }));
+  expect(() => createState({ ...defaults('I'), wheels: ['VI', 'II', 'III'] })).toThrow(SettingsError);
 });

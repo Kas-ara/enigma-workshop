@@ -13,7 +13,7 @@ export interface Settings {
 type ErrorCode = 'reflector' | 'rotors' | 'letters' | 'plugCount' | 'plugFormat' | 'plugDuplicate' | 'key';
 
 export class SettingsError extends Error {
-  constructor(readonly code: ErrorCode) {
+  constructor(readonly code: ErrorCode, readonly rotorSlots: readonly number[] = []) {
     super(code);
     this.name = 'SettingsError';
   }
@@ -65,16 +65,20 @@ export function createState(config: Settings) {
   const { modelId, wheels, rings, positions, reflector, plugs } = config;
   const model = models[modelId];
   if (!model.reflectors.includes(reflector)) throw new SettingsError('reflector');
-  if (new Set(wheels).size !== model.slots || wheels.length !== model.slots ||
-    wheels.some((wheel, slot) => !rotorOptions(modelId, slot).includes(wheel))) {
-    throw new SettingsError('rotors');
-  }
+  const invalidSlots = wheels.flatMap((wheel, slot) => {
+    const repeated = wheels.indexOf(wheel) !== wheels.lastIndexOf(wheel);
+    return repeated || !rotorOptions(modelId, slot).includes(wheel) ? [slot] : [];
+  });
+  if (wheels.length !== model.slots || invalidSlots.length) throw new SettingsError('rotors', invalidSlots);
   if (rings.length !== model.slots || positions.length !== model.slots ||
     !rings.every(isLetter) || !positions.every(isLetter)) throw new SettingsError('letters');
   return {
     machine: {
       wheels: wheels.map((name, slot) => ({ name, ring: index(rings[slot]), ...rotors[name] })),
       contacts: plugboard(plugs), reflector, reflectorWiring: reflectors[reflector],
+      entryToRotors: [...alphabet].map((letter) => model.entryWheel.indexOf(letter)),
+      entryToKeys: [...model.entryWheel].map(index),
+      advance: model.advance,
     },
     positions: positions.map(index),
   };
@@ -87,16 +91,9 @@ export function step(state: State, letter: string, trace?: false): { state: Stat
 export function step(state: State, letter: string, trace: boolean = false): { state: State; output: string; trace?: Trace } {
   if (!isLetter(letter)) throw new SettingsError('key');
   const { machine } = state;
-  const positions = [...state.positions];
-  const { wheels, contacts, reflector, reflectorWiring } = machine;
+  const { wheels, contacts, reflector, reflectorWiring, entryToRotors, entryToKeys, advance } = machine;
+  const positions = advance(state.positions, wheels);
   const right = wheels.length - 1;
-  const middle = right - 1;
-  const left = middle - 1;
-  const middleNotch = wheels[middle].notches.includes(alphabet[positions[middle]]);
-  const rightNotch = wheels[right].notches.includes(alphabet[positions[right]]);
-  if (middleNotch) positions[left] = mod(positions[left] + 1);
-  if (middleNotch || rightNotch) positions[middle] = mod(positions[middle] + 1);
-  positions[right] = mod(positions[right] + 1);
 
   let value = index(letter);
   const path: Contact[] = [];
@@ -110,11 +107,11 @@ export function step(state: State, letter: string, trace: boolean = false): { st
     pass(direction, wheel.name, mod(wheel[direction][mod(value + offset)] - offset));
   }
   pass('plug', '', contacts[value]);
-  pass('entry', '', value);
+  pass('entry', '', entryToRotors[value]);
   for (let slot = right; slot >= 0; slot -= 1) cross(slot, 'forward');
   pass('reflector', reflector, reflectorWiring[value]);
   for (let slot = 0; slot <= right; slot += 1) cross(slot, 'reverse');
-  pass('entry', '', value);
+  pass('entry', '', entryToKeys[value]);
   pass('plug', '', contacts[value]);
 
   const output = alphabet[value];

@@ -43,7 +43,7 @@ let last: Trace | null = null;
 let lit: Trace | null = null;
 let timer: number | null = null;
 let displayFeedback: { key: MessageKey; vars?: Record<string, string | number> } | null = null;
-let errorKey: MessageKey | null = null;
+let settingsIssue: engine.SettingsError | null = null;
 
 const labelPosition = (letter: string) => modelId === 'I'
   ? String(engine.alphabet.indexOf(letter) + 1).padStart(2, '0') : letter;
@@ -98,6 +98,7 @@ function renderSettings(config: Settings) {
       const label = el('label', '', name);
       const select = el('select');
       select.setAttribute('aria-label', name + ' · ' + slotName);
+      if (key === 'rotor') select.setAttribute('aria-describedby', 'settings-error');
       options(select, values, current, format);
       select.addEventListener('change', invalidate);
       label.append(select);
@@ -252,9 +253,16 @@ function stop() {
   updateControls();
 }
 
+function markInvalid(field: HTMLElement, invalid: boolean) {
+  if (invalid) field.setAttribute('aria-invalid', 'true');
+  else field.removeAttribute('aria-invalid');
+}
+
 function renderFeedback() {
   feedback.textContent = displayFeedback ? t(displayFeedback.key, displayFeedback.vars) : '';
-  $('settings-error').textContent = errorKey ? t(errorKey) : '';
+  $('settings-error').textContent = settingsIssue ? t(errors[settingsIssue.code]) : '';
+  markInvalid(plugs, settingsIssue?.code.startsWith('plug') === true);
+  settings.forEach(([rotor], slot) => markInvalid(rotor, settingsIssue?.rotorSlots.includes(slot) === true));
 }
 
 function invalidate() {
@@ -267,8 +275,7 @@ function invalidate() {
   lit = null;
   output.value = '';
   displayFeedback = null;
-  errorKey = null;
-  plugs.removeAttribute('aria-invalid');
+  settingsIssue = null;
   renderFeedback();
   renderScene();
   renderSignal();
@@ -293,25 +300,28 @@ const errors: Record<engine.SettingsError['code'], MessageKey> = {
   reflector: 'invalidReflector', rotors: 'invalidRotors', letters: 'invalidLetters',
   plugCount: 'invalidPlugCount', plugFormat: 'invalidPlugFormat', plugDuplicate: 'invalidPlugDuplicate', key: 'invalidKey',
 };
+function readSettings(): State | null {
+  try {
+    const state = engine.createState(currentConfig());
+    settingsIssue = null;
+    return state;
+  } catch (error) {
+    if (!(error instanceof engine.SettingsError)) throw error;
+    settingsIssue = error;
+    displayFeedback = { key: 'checkSettings' };
+    renderFeedback();
+    return null;
+  }
+}
+
 function prepare(message: string): State | null {
-  errorKey = null;
-  plugs.removeAttribute('aria-invalid');
   if (!message.length) {
     displayFeedback = { key: 'empty' };
     renderFeedback();
     input.focus();
     return null;
   }
-  try {
-    return session ??= engine.createState(currentConfig());
-  } catch (error) {
-    if (!(error instanceof engine.SettingsError)) throw error;
-    errorKey = errors[error.code];
-    if (error.code.startsWith('plug')) plugs.setAttribute('aria-invalid', 'true');
-    displayFeedback = { key: 'checkSettings' };
-    renderFeedback();
-    return null;
-  }
+  return session ??= readSettings();
 }
 
 function applyProgress(message: string, result: { state: State; output: string; trace: Trace }) {
@@ -380,7 +390,10 @@ function appendLiveCharacter(letter: string) {
   return true;
 }
 
-const liveInput = createLiveInput(workshop, keyboard, input, appendLiveCharacter, turnOffLamp);
+const liveInput = createLiveInput(workshop, keyboard, input, appendLiveCharacter, turnOffLamp, () => {
+  setLive(false);
+  $('live-toggle').focus({ preventScroll: true });
+});
 
 function renderLive() {
   $('live-toggle').setAttribute('aria-pressed', String(live));
@@ -458,7 +471,9 @@ function selectView(value: typeof view, persist = true) {
 }
 
 function showFallback() {
+  scene?.dispose();
   scene = null;
+  delete canvas.dataset.renderer;
   webglUnavailable = true;
   if (document.activeElement === view3D || document.activeElement === $('explode') ||
     $('camera').contains(document.activeElement)) view2D.focus();
@@ -491,19 +506,13 @@ const sceneObserver = new IntersectionObserver((entries) => {
 sceneObserver.observe($('machine-viewport'));
 view2D.addEventListener('click', () => selectView('2d'));
 view3D.addEventListener('click', () => selectView('3d'));
-canvas.addEventListener('webglcontextlost', () => { delete canvas.dataset.renderer; showFallback(); });
+canvas.addEventListener('webglcontextlost', showFallback);
 
 $('live-toggle').addEventListener('click', () => setLive(!live));
 $('live-clear').addEventListener('click', () => {
   input.value = '';
   invalidate();
   input.focus({ preventScroll: true });
-});
-workshop.addEventListener('keydown', (event) => {
-  if (!live || event.key !== 'Escape') return;
-  event.preventDefault();
-  setLive(false);
-  $('live-toggle').focus({ preventScroll: true });
 });
 
 theme.addEventListener('change', () => applyTheme(theme.value));
@@ -521,15 +530,9 @@ $('example').addEventListener('click', () => {
   const example = t('sample');
   if (mode === 'encode') input.value = example;
   else {
-    try {
-      input.value = engine.encodeText(engine.createState(currentConfig()), normalize(example)).output;
-    } catch (error) {
-      if (!(error instanceof engine.SettingsError)) throw error;
-      errorKey = errors[error.code];
-      displayFeedback = { key: 'checkSettings' };
-      renderFeedback();
-      return;
-    }
+    const exampleState = readSettings();
+    if (!exampleState) return;
+    input.value = engine.encodeText(exampleState, normalize(example)).output;
   }
   invalidate();
   input.focus();

@@ -8,7 +8,7 @@ export const fr = {
   ledeFirst: "Une touche, des rotors qui avancent, une lettre qui s’allume.",
   ledeSecond: "Manipulez la machine et suivez le courant qui transforme votre message.",
   pageTitle: "Atelier Enigma — Simulateur historique",
-  pageDescription: "Explorez quatre machines Enigma en 3D et découvrez comment leurs rotors chiffraient les messages.",
+  pageDescription: "Explorez trois machines Enigma en 3D et découvrez comment leurs rotors chiffraient les messages.",
   skip: "Aller au simulateur",
   navigation: "Navigation principale",
   simulator: "Simulateur",

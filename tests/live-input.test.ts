@@ -9,6 +9,7 @@ let setting: HTMLInputElement;
 let control: ReturnType<typeof createLiveInput>;
 const accepted = vi.fn<(letter: string) => boolean>();
 const released = vi.fn();
+const exited = vi.fn();
 
 beforeEach(() => {
   document.body.innerHTML = '<main><textarea readonly></textarea><input><div><button data-key="A">A</button></div></main>';
@@ -19,7 +20,8 @@ beforeEach(() => {
   key.setPointerCapture = vi.fn();
   accepted.mockReset().mockReturnValue(true);
   released.mockReset();
-  control = createLiveInput(workshop, key.parentElement!, transcript, accepted, released);
+  exited.mockReset();
+  control = createLiveInput(workshop, key.parentElement!, transcript, accepted, released, exited);
   control.setEnabled(true);
 });
 
@@ -102,4 +104,22 @@ test('the on-screen spacebar keeps focus ready for the physical keyboard', () =>
   expect(accepted.mock.calls).toEqual([[' ']]);
   space.dispatchEvent(new PointerEvent('pointerup', { pointerId: 4, bubbles: true }));
   expect(released).not.toHaveBeenCalled();
+});
+
+test('Space keeps ordinary buttons activatable', () => {
+  const toggle = document.createElement('button');
+  workshop.append(toggle);
+  expect(keyboard(toggle, 'keydown', ' ', { code: 'Space' })).toBe(true);
+  expect(accepted).not.toHaveBeenCalled();
+});
+
+test('typing and Escape work with focus outside the workshop', () => {
+  const outside = document.createElement('button');
+  document.body.append(outside);
+  keyboard(document.body, 'keydown', 'a');
+  keyboard(outside, 'keyup', 'a');
+  expect(accepted.mock.calls).toEqual([['A']]);
+  expect(released).toHaveBeenCalledOnce();
+  expect(keyboard(outside, 'keydown', 'Escape', { code: 'Escape' })).toBe(false);
+  expect(exited).toHaveBeenCalledOnce();
 });

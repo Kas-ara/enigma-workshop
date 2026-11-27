@@ -4,7 +4,7 @@ An interactive historical simulator for the Enigma I, M3 and M4. English is the 
 
 ## Run the workshop
 
-With Node.js 22.12+ or 24+:
+With Node.js 22.13+ (22.x) or 24+:
 
 ```sh
 npm ci
@@ -31,10 +31,11 @@ The editor normalizes letters to A–Z and skips punctuation and digits. Live ke
 ## Validate and build
 
 ```sh
+npm run lint
 npm test
 npm run build
 ```
 
-The build can be served from a subdirectory. The GitHub Pages workflow requires the repository to be configured for GitHub Actions as its Pages source and is started manually. Automatic checks compile the site and test the engine.
+The build can be served from a subdirectory. The GitHub Pages workflow requires the repository to be configured for GitHub Actions as its Pages source and is started manually. Automatic checks lint TypeScript, compile the site and run the tests.
 
 The engine in `src/engine` is independent of the HTML and 3D code. The scene and the circuit use the rotor positions and signal trace it produces. Interface copy lives in `src/i18n` and the localized historical entries in `content/history`.

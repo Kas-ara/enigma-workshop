@@ -15,8 +15,8 @@ interface MachineModel {
   rotorSlots: number;                // 3 or 4 (the 4th never steps)
   rotors: RotorSpec[]; reflectors: ReflectorSpec[];
   plugboard: boolean;
-  stepping: "double-step" | "cog";   // "cog" for Abwehr G
-  entryWheel: string;                // ETW: "ABC…" military, "QWERTZ…" commercial
+  advance: (positions: readonly number[], rotors: readonly RotorSpec[]) => number[];
+  entryWheel: string;                // Key at each ETW contact, in contact order
 }
 interface MachineSettings {
   model: string; reflector: string; rotors: string[];

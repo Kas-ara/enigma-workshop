@@ -38,6 +38,19 @@ export const reflectors = Object.fromEntries(Object.entries(reflectorWiring).map
   name, [...wiring].map(index),
 ]));
 
+function advancePawls(current: readonly number[], wheels: readonly { notches: string }[]) {
+  const positions = [...current];
+  const right = positions.length - 1;
+  const middle = right - 1;
+  const left = middle - 1;
+  const middleAtNotch = wheels[middle].notches.includes(alphabet[positions[middle]]);
+  const rightAtNotch = wheels[right].notches.includes(alphabet[positions[right]]);
+  if (middleAtNotch) positions[left] = (positions[left] + 1) % alphabet.length;
+  if (middleAtNotch || rightAtNotch) positions[middle] = (positions[middle] + 1) % alphabet.length;
+  positions[right] = (positions[right] + 1) % alphabet.length;
+  return positions;
+}
+
 interface MachineModel {
   name: string;
   year: string;
@@ -45,15 +58,17 @@ interface MachineModel {
   defaultWheels: string[];
   reflectors: Reflector[];
   selectable: number;
+  entryWheel: string;
+  advance: typeof advancePawls;
 }
 
 export const models: Record<ModelId, MachineModel> = {
   I: { name: 'Enigma I', year: '1930', slots: 3, defaultWheels: ['I', 'II', 'III'],
-    reflectors: ['B', 'A', 'C'], selectable: 5 },
+    reflectors: ['B', 'A', 'C'], selectable: 5, entryWheel: alphabet, advance: advancePawls },
   M3: { name: 'Enigma M3', year: '1939', slots: 3, defaultWheels: ['II', 'IV', 'VI'],
-    reflectors: ['B', 'C'], selectable: 8 },
+    reflectors: ['B', 'C'], selectable: 8, entryWheel: alphabet, advance: advancePawls },
   M4: { name: 'Enigma M4', year: '1942', slots: 4, defaultWheels: ['β', 'I', 'II', 'III'],
-    reflectors: ['B-thin', 'C-thin'], selectable: 8 },
+    reflectors: ['B-thin', 'C-thin'], selectable: 8, entryWheel: alphabet, advance: advancePawls },
 };
 
 export function rotorOptions(modelId: ModelId, slot: number): string[] {
