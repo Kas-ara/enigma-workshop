@@ -19,7 +19,7 @@ python3 -m http.server 8724 --bind 127.0.0.1 --directory dist
 
 ## Try it
 
-- Pick a machine, then set the rotor order, rings, starting positions, reflector and plugboard.
+- Pick a machine, then set the rotor order, rings, starting positions, reflector and plugboard. To restore the current machine's original settings, use **Reset defaults**.
 - Encrypt the complete message, step one letter at a time, or animate the sequence. Use **Reverse** to run the result again with the original settings. Enigma uses the same operation in both directions.
 - Follow **The circuit**, including the entry wheel, reflectors and return path. **Try the double step** sets up an example where the middle rotor advances on two successive keystrokes.
 - Choose **2D** for a flat keyboard and lampboard, or **3D** to rotate the machine and lift the rotors with **Exploded view**. If 3D is unavailable, the workshop opens the 2D machine. Both views show the same rotor settings.

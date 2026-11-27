@@ -74,7 +74,12 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', value
 }
 
 function options(select: HTMLSelectElement, values: string[], current: string, format = (value: string) => value) {
-  select.replaceChildren(...values.map((value) => new Option(format(value), value, false, value === current)));
+  select.replaceChildren(...values.map((value) => {
+    const option = el('option', '', format(value));
+    option.value = value;
+    return option;
+  }));
+  if (values.includes(current)) select.value = current;
 }
 
 function renderSettings(config: Settings) {
@@ -440,7 +445,7 @@ initializeBoard();
 for (const id of Object.keys(engine.models).filter(isModelId)) {
   const button = el('button', 'model');
   button.type = 'button';
-  button.addEventListener('click', () => selectModel(id));
+  button.addEventListener('click', () => { if (id !== modelId) selectModel(id); });
   modelButtons.set(id, button);
   $('models').append(button);
 }

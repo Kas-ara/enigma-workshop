@@ -50,7 +50,7 @@ export function createLiveInput(
     }
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
-    if (target !== transcript && (target.isContentEditable || target.closest('input, textarea, select'))) return;
+    if (target !== transcript && (target.isContentEditable || target.closest('input, textarea:not([readonly]), select'))) return;
     const button = keyButton(target);
     let letter: string | undefined;
     if (button && (event.key === 'Enter' || event.key === ' ')) {

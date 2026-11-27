@@ -47,10 +47,26 @@ test('a held physical letter sends once and only its release switches the lamp o
 });
 
 test('the physical keyboard leaves editable settings, shortcuts and IME alone', () => {
+  const editor = document.createElement('textarea');
+  workshop.append(editor);
   expect(keyboard(setting, 'keydown', 'a')).toBe(true);
+  expect(keyboard(editor, 'keydown', 'a')).toBe(true);
   expect(keyboard(transcript, 'keydown', 'a', { metaKey: true })).toBe(true);
   expect(keyboard(transcript, 'keydown', 'a', { isComposing: true })).toBe(true);
   expect(accepted).not.toHaveBeenCalled();
+});
+
+test('letters still work with the read-only result focused', () => {
+  const result = document.createElement('textarea');
+  result.readOnly = true;
+  workshop.append(result);
+  result.focus();
+  expect(keyboard(result, 'keydown', ' ', { code: 'Space' })).toBe(true);
+  expect(keyboard(result, 'keydown', 'a', { metaKey: true })).toBe(true);
+  expect(keyboard(result, 'keydown', 'a')).toBe(false);
+  expect(accepted.mock.calls).toEqual([['A']]);
+  keyboard(result, 'keyup', 'a');
+  expect(released).toHaveBeenCalledOnce();
 });
 
 test('Space acts as a held key on the 2D keyboard button', () => {

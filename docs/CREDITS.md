@@ -10,7 +10,7 @@
 | [The Sting](https://www.nsa.gov/portals/75/documents/news-features/declassified-documents/cryptologic-quarterly/the_sting.pdf) | French intelligence material and Polish collaboration | NSA, declassified Cryptologic Quarterly | Linked reference |
 | [Enigma decryption](https://aw.gov.pl/en/history/enigma-decryption/183%2CEnigma-decryption.html) | Polish cryptanalysts and the meeting at Pyry | Polish Foreign Intelligence Agency | Linked reference |
 | [The Pyry Forest Meeting](https://www.gchq.gov.uk/sites/default/files/pdfs/publication/the-pyry-forest-meeting.pdf), [Hut 11A teaching notes](https://bletchleypark.org.uk/wp-content/uploads/2021/10/teachers-notes-ks2-2019.pdf) | Franco-Polish-British collaboration and the British Bombe | GCHQ and Bletchley Park Trust | Linked references |
-| [Three.js](https://github.com/mrdoob/three.js) | 3D renderer | Three.js contributors | MIT |
+| [Three.js](https://github.com/mrdoob/three.js) | 3D renderer | Three.js contributors | MIT; the production build includes the installed version's notice as `THREE-LICENSE.txt` |
 | Machine geometry, material colours and labels | Interactive model | Enigma Workshop | Procedurally drawn for this project |
 
 The workshop uses system fonts. It bundles no external photographs, geometry models or font files.
