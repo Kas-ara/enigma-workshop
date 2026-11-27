@@ -1,6 +1,7 @@
 export type ModelId = 'I' | 'M3' | 'M4';
 
 export const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+export const keyboardRows = ['QWERTZUIO', 'ASDFGHJK', 'PYXCVBNML'] as const;
 const wheelNames = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 
 const rotorWiring: Record<string, readonly [wiring: string, notches: string]> = {

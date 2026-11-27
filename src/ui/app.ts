@@ -3,6 +3,8 @@ import * as engine from '../engine/enigma';
 import { type Contact, type ModelId, type Reflector, type Settings, type State, type Trace } from '../engine/enigma';
 import { localize, t, type MessageKey } from '../i18n';
 import { normalize } from './normalize';
+import { keyboardRows } from '../engine/models/service';
+import { createLiveInput } from './live-input';
 import type { MachineScene } from '../scene3d/machine';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -14,12 +16,23 @@ const theme = $<HTMLSelectElement>('theme');
 const language = $<HTMLSelectElement>('language');
 const reflector = $<HTMLSelectElement>('reflector');
 const plugs = $<HTMLInputElement>('plugs');
-const fallback = $('scene-fallback');
+const workshop = $('workshop');
+const keyboard = $('machine-keyboard');
+const lamps = new Map<string, HTMLElement>();
+const keys = new Map<string, HTMLButtonElement>();
+const lampReading = $('live-lamp');
+const view2D = $<HTMLButtonElement>('view-2d');
+const view3D = $<HTMLButtonElement>('view-3d');
 const modelButtons = new Map<ModelId, HTMLButtonElement>();
 const alphabet = [...engine.alphabet];
 
 let scene: MachineScene | null = null;
 let exploded = false;
+let view: '2d' | '3d' = '3d';
+let nearViewport = false;
+let sceneLoading = false;
+let webglUnavailable = false;
+let live = false;
 let modelId: ModelId = 'I';
 let mode: 'encode' | 'decode' = 'encode';
 let settings: HTMLSelectElement[][] = [];
@@ -27,6 +40,7 @@ let session: State | null = null;
 let cursor = 0;
 let processed = '';
 let last: Trace | null = null;
+let lit: Trace | null = null;
 let timer: number | null = null;
 let displayFeedback: { key: MessageKey; vars?: Record<string, string | number> } | null = null;
 let errorKey: MessageKey | null = null;
@@ -127,21 +141,54 @@ function selectModel(next: ModelId, config = engine.defaults(next)) {
   invalidate();
 }
 
+function renderIndicators(updateSceneKeys = true) {
+  if (updateSceneKeys) scene?.setKeys(lit?.input, lit?.output);
+  for (const [letter, lamp] of lamps) lamp.toggleAttribute('data-lit', lit?.output === letter);
+  for (const [letter, key] of keys) key.toggleAttribute('data-pressed', lit?.input === letter);
+  lampReading.textContent = lit?.output ?? '—';
+  lampReading.toggleAttribute('data-active', Boolean(lit));
+}
+
+function turnOffLamp() {
+  lit = null;
+  renderIndicators();
+}
+
 function renderScene(animate = false) {
   const config = currentConfig();
   const positions = last?.positions ?? config.positions;
   const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
-  scene?.update({ modelId, positions,
-    before: animate ? last?.before ?? positions : positions, input: last?.input, output: last?.output, accent });
-  $('windows').replaceChildren(...positions.map((letter, slot) => {
+  renderIndicators(false);
+  if (view === '3d') scene?.update({ modelId, positions,
+    before: animate ? last?.before ?? positions : positions, input: lit?.input, output: lit?.output, accent });
+  const chips = positions.map((letter, slot) => {
     const changed = last && last.before[slot] !== letter;
     const chip = el('span', changed ? 'advanced' : '', labelPosition(letter));
     chip.title = t('rotor') + ' ' + config.wheels[slot] + ' · ' + letter;
     return chip;
-  }));
-  $('fallback-key').textContent = last?.input ?? '—';
-  $('fallback-positions').textContent = windowsText(positions);
-  $('fallback-lamp').textContent = last?.output ?? '—';
+  });
+  $('windows').replaceChildren(...chips);
+  $('flat-windows').replaceChildren(...chips.map((chip) => chip.cloneNode(true)));
+}
+
+function initializeBoard() {
+  for (const row of keyboardRows) {
+    const lampRow = el('div', 'board-row');
+    const keyRow = el('div', 'board-row');
+    for (const letter of row) {
+      const lamp = el('span', 'board-lamp', letter);
+      const key = el('button', 'board-key', letter);
+      key.type = 'button';
+      key.disabled = true;
+      key.dataset.key = letter;
+      lamps.set(letter, lamp);
+      keys.set(letter, key);
+      lampRow.append(lamp);
+      keyRow.append(key);
+    }
+    $('lampboard').append(lampRow);
+    keyboard.append(keyRow);
+  }
 }
 
 function contactTitle({ stage, label }: Contact): string {
@@ -183,11 +230,12 @@ function updateControls() {
   const remaining = length - cursor;
   $<HTMLButtonElement>('copy').disabled = !processed;
   $<HTMLButtonElement>('reverse').disabled = !processed || remaining !== 0;
-  $<HTMLButtonElement>('step').disabled = remaining <= 0;
-  $<HTMLButtonElement>('play').disabled = remaining <= 0 && !timer;
+  $<HTMLButtonElement>('run').disabled = live;
+  $<HTMLButtonElement>('step').disabled = live || remaining <= 0;
+  $<HTMLButtonElement>('play').disabled = live || (remaining <= 0 && !timer);
   $('play').setAttribute('aria-pressed', String(Boolean(timer)));
   $('play').textContent = t(timer ? 'pause' : 'play');
-  $('console-status').textContent = t(timer ? 'playing' : remaining === 0 && processed ? 'done' : 'ready');
+  $('console-status').textContent = t(live ? 'live' : timer ? 'playing' : remaining === 0 && processed ? 'done' : 'ready');
   $('count').textContent = t(length === 1 ? 'lettersOne' : 'lettersMany', { count: length });
 }
 
@@ -204,10 +252,12 @@ function renderFeedback() {
 
 function invalidate() {
   stop();
+  liveInput.release();
   session = null;
   cursor = 0;
   processed = '';
   last = null;
+  lit = null;
   output.value = '';
   displayFeedback = null;
   errorKey = null;
@@ -260,10 +310,13 @@ function prepare(message: string): State | null {
 function applyProgress(message: string, result: { state: State; output: string; trace: Trace }) {
   session = result.state;
   last = result.trace;
+  lit = result.trace;
   cursor += 1;
   processed += result.output;
   output.value = processed;
-  displayFeedback = { key: 'progress', vars: { current: cursor, total: message.length } };
+  displayFeedback = live
+    ? { key: 'liveProgress', vars: { input: result.trace.input, output: result.output, total: cursor } }
+    : { key: 'progress', vars: { current: cursor, total: message.length } };
   if (cursor === message.length) stop();
   renderFeedback();
   renderScene(true);
@@ -301,6 +354,44 @@ function togglePlay() {
   updateControls();
 }
 
+function appendLiveLetter(letter: string) {
+  if (!live || input.value.length >= input.maxLength) return false;
+  const state = prepare(letter);
+  if (!state) return false;
+  const existing = normalize(input.value);
+  // Keep any pending text when entering Live or changing the settings.
+  const prefix = engine.encodeText(state, existing.slice(cursor));
+  processed += prefix.output;
+  cursor = existing.length;
+  input.value += letter;
+  applyProgress(existing + letter, engine.step(prefix.state, letter, true));
+  return true;
+}
+
+const liveInput = createLiveInput(workshop, keyboard, input, appendLiveLetter, turnOffLamp);
+
+function renderLive() {
+  $('live-toggle').setAttribute('aria-pressed', String(live));
+  $('live-hint').textContent = live ? t('liveHint') : '';
+  $('live-toolbar').hidden = !live;
+  input.readOnly = live;
+  if (live) input.setAttribute('aria-keyshortcuts', 'Escape');
+  else input.removeAttribute('aria-keyshortcuts');
+  input.setAttribute('aria-describedby', live ? 'live-hint normalization' : 'normalization');
+  for (const key of keys.values()) key.disabled = !live;
+  updateControls();
+}
+
+function setLive(value: boolean) {
+  if (live === value) return;
+  liveInput.setEnabled(value);
+  stop();
+  live = value;
+  renderLive();
+  turnOffLamp();
+  if (value) input.focus({ preventScroll: true });
+}
+
 function setLanguage(value: string) {
   const config = currentConfig();
   language.value = localize(value);
@@ -308,12 +399,14 @@ function setLanguage(value: string) {
   renderModel();
   renderSettings(config);
   renderMode();
+  renderLive();
   renderFeedback();
   renderSignal();
   renderScene();
   updateControls();
 }
 
+initializeBoard();
 for (const id of Object.keys(engine.models).filter(isModelId)) {
   const button = el('button', 'model');
   button.type = 'button';
@@ -325,15 +418,41 @@ selectModel(modelId);
 setLanguage(readPreference('enigma-workshop-language') ?? 'en');
 applyTheme(readPreference('enigma-workshop-theme') ?? 'de');
 
+function renderView() {
+  const flat = view === '2d';
+  canvas.hidden = flat;
+  $('machine-2d').hidden = !flat;
+  $('webgl-note').hidden = !webglUnavailable;
+  $('camera').hidden = flat;
+  $('windows').hidden = flat;
+  $('scene-index').hidden = flat;
+  $('explode').hidden = flat;
+  view2D.setAttribute('aria-pressed', String(flat));
+  view3D.setAttribute('aria-pressed', String(!flat));
+  view3D.disabled = webglUnavailable;
+}
+
+function selectView(value: typeof view, persist = true) {
+  view = webglUnavailable ? '2d' : value;
+  if (persist) savePreference('enigma-workshop-view', view);
+  renderView();
+  renderScene();
+  if (view === '3d' && nearViewport) loadScene();
+}
+
 function showFallback() {
   scene = null;
-  canvas.hidden = true;
-  fallback.hidden = false;
-  for (const id of ['explode', 'turn-left', 'turn-right', 'reset-view']) $<HTMLButtonElement>(id).disabled = true;
+  webglUnavailable = true;
+  if (document.activeElement === view3D || document.activeElement === $('explode') ||
+    $('camera').contains(document.activeElement)) view2D.focus();
+  selectView('2d', false);
 }
 
 function loadScene() {
+  if (scene || sceneLoading || webglUnavailable) return;
+  sceneLoading = true;
   void import('../scene3d/machine').then(({ createMachineScene }) => {
+    if (view !== '3d') return;
     scene = createMachineScene(canvas);
     if (!scene) {
       showFallback();
@@ -342,14 +461,33 @@ function loadScene() {
     canvas.dataset.renderer = 'webgl';
     scene.explode(exploded);
     renderScene();
-  }).catch(showFallback);
+  }).catch(showFallback).finally(() => { sceneLoading = false; });
 }
+
+selectView(readPreference('enigma-workshop-view') === '2d' ? '2d' : '3d', false);
 const sceneObserver = new IntersectionObserver((entries) => {
   if (!entries.some((entry) => entry.isIntersecting)) return;
+  nearViewport = true;
   sceneObserver.disconnect();
-  loadScene();
+  if (view === '3d') loadScene();
 }, { rootMargin: '100px' });
-sceneObserver.observe(canvas);
+sceneObserver.observe($('machine-viewport'));
+view2D.addEventListener('click', () => selectView('2d'));
+view3D.addEventListener('click', () => selectView('3d'));
+canvas.addEventListener('webglcontextlost', () => { delete canvas.dataset.renderer; showFallback(); });
+
+$('live-toggle').addEventListener('click', () => setLive(!live));
+$('live-clear').addEventListener('click', () => {
+  input.value = '';
+  invalidate();
+  input.focus({ preventScroll: true });
+});
+workshop.addEventListener('keydown', (event) => {
+  if (!live || event.key !== 'Escape') return;
+  event.preventDefault();
+  setLive(false);
+  $('live-toggle').focus({ preventScroll: true });
+});
 
 theme.addEventListener('change', () => applyTheme(theme.value));
 language.addEventListener('change', () => setLanguage(language.value));
@@ -380,6 +518,7 @@ $('example').addEventListener('click', () => {
   input.focus();
 });
 $('reverse').addEventListener('click', () => {
+  setLive(false);
   input.value = processed;
   setMode(mode === 'encode' ? 'decode' : 'encode');
   run();
@@ -404,6 +543,7 @@ $('turn-left').addEventListener('click', () => scene?.rotate(-1));
 $('turn-right').addEventListener('click', () => scene?.rotate(1));
 $('reset-view').addEventListener('click', () => scene?.reset());
 $('double-step').addEventListener('click', () => {
+  setLive(false);
   input.value = 'AAA';
   setMode('encode');
   selectModel('I', { ...engine.defaults('I'), positions: [...'ADU'] });
@@ -413,6 +553,7 @@ $('double-step').addEventListener('click', () => {
 });
 
 function loadArchive(ciphertext: string, config: Settings) {
+  setLive(false);
   input.value = ciphertext;
   setMode('decode');
   selectModel(config.modelId, config);

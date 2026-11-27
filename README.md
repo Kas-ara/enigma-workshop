@@ -22,10 +22,11 @@ python3 -m http.server 8724 --bind 127.0.0.1 --directory dist
 - Pick a machine, then set the rotor order, rings, starting positions, reflector and plugboard.
 - Encrypt the complete message, step one letter at a time, or animate the sequence. Use **Reverse** to run the result again with the original settings. Enigma uses the same operation in both directions.
 - Follow **The circuit**, including the entry wheel, reflectors and return path. **Try the double step** sets up an example where the middle rotor advances on two successive keystrokes.
-- Drag to rotate the Three.js model or use the camera buttons. **Exploded view** lifts the rotor assembly. The 2D view and signal trace work without WebGL. The models illustrate the mechanical layout.
+- Choose **2D** for a flat keyboard and lampboard, or **3D** to rotate the machine and lift the rotors with **Exploded view**. If 3D is unavailable, the workshop opens the 2D machine. Both views show the same rotor settings.
+- Turn on **Live**, then hold a physical letter key or a key on the 2D machine. The output letter lights until you release the key. Holding a key produces one letter. Use **Esc** to leave Live and return to message controls such as **One letter**.
 - In **History**, load the opening of the example from the 1930 manual or a naval M4 message from U-264. Sources are linked from the timeline and listed in [Credits](docs/CREDITS.md).
 
-The editor normalizes letters to A–Z and skips punctuation, spaces and digits. Text is processed in the browser. Language and palette are the only persistent preferences. The simulator assumes the starting key is known and processes the body of a message.
+The editor normalizes letters to A–Z and skips punctuation, spaces and digits. Text is processed in the browser. Language, palette and the 2D/3D choice are the only persistent preferences. The simulator assumes the starting key is known and processes the body of a message.
 
 ## Validate and build
 

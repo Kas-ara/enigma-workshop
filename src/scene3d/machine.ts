@@ -3,7 +3,7 @@ import {
   Mesh, MeshBasicMaterial, MeshStandardMaterial, OrthographicCamera, PlaneGeometry, Scene,
   SRGBColorSpace, WebGLRenderer, type BufferGeometry, type Material,
 } from 'three';
-import type { ModelId } from '../engine/enigma';
+import { keyboardRows, type ModelId } from '../engine/models/service';
 
 interface Snapshot {
   modelId: ModelId;
@@ -16,13 +16,13 @@ interface Snapshot {
 
 export interface MachineScene {
   update(snapshot: Snapshot): void;
+  setKeys(input?: string, output?: string): void;
   explode(value: boolean): void;
   rotate(direction: number): void;
   reset(): void;
 }
 
 const TAU = 2 * Math.PI;
-const rows = ['QWERTZUIO', 'ASDFGHJK', 'PYXCVBNML'];
 const DEFAULT_YAW = -0.43;
 const DEFAULT_PITCH = 0.66;
 
@@ -152,7 +152,7 @@ export function createMachineScene(canvas: HTMLCanvasElement): MachineScene | nu
   box(lamps, steel, 0, 0.18, -0.22, 4.83, 0.15, 1.50);
   const keysByLetter = new Map<string, { group: Group; cap: Mesh }>();
   const lampsByLetter = new Map<string, Mesh>();
-  for (const [rowIndex, row] of rows.entries()) {
+  for (const [rowIndex, row] of keyboardRows.entries()) {
     for (const [column, letter] of [...row].entries()) {
       const x = (column - (row.length - 1) / 2) * 0.45;
       const key = new Group();
@@ -319,6 +319,10 @@ export function createMachineScene(canvas: HTMLCanvasElement): MachineScene | nu
           material.needsUpdate = true;
         }
       }
+      schedule();
+    },
+    setKeys(input, output) {
+      if (state) state = { ...state, input, output };
       schedule();
     },
     explode(value) {

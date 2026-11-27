@@ -7,7 +7,7 @@ This document is authoritative. A decision that departs from it needs a record i
 - Modern web UI showing how Enigma machines work, several models.
 - Animated 3D models, dark look, themes in the colours of the countries involved.
 - History section.
-- Encoder and decoder.
+- Encoder and decoder. The workshop also offers an explicit 2D view and a Live keyboard mode where the output lamp follows key press and release.
 - GitHub repository created if needed; the user is told if they must act.
 - English from day one, with French and German translations for the UI and historical content.
 
@@ -26,7 +26,7 @@ This document is authoritative. A decision that departs from it needs a record i
 | Machine models | Declarative data in `src/engine/models/` |
 | Encrypt / decrypt | Same function (reciprocity); two UI modes for teaching |
 | Teaching trace | For each letter the engine returns rotor stepping and signal path; 2D and 3D only render it |
-| 3D | Three.js, lazy-loaded, procedural geometry in v1; 2D fallback; `prefers-reduced-motion` (ADR-004) |
+| 3D | Three.js, lazy-loaded, procedural geometry in v1; selectable 2D view and fallback; `prefers-reduced-motion` (ADR-004) |
 | History | Markdown in `content/history/`, every fact sourced |
 | Themes | CSS tokens per country in `src/ui/themes/`; no Nazi symbols (ADR-005) |
 | Language | English by default, French and German; strings isolated in `src/i18n/` |
