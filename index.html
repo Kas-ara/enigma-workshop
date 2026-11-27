@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en" data-theme="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Explore three Enigma machines in 3D and discover how their rotors enciphered messages." data-l10n-content="pageDescription">
+  <meta name="theme-color" content="#101514">
+  <title data-l10n="pageTitle">Enigma Workshop — Historical simulator</title>
+  <script type="module" src="/src/ui/app.ts"></script>
+</head>
+<body>
+  <a class="skip" href="#workshop" data-l10n="skip">Skip to simulator</a>
+  <header class="masthead">
+    <div class="wrap nav">
+      <a class="wordmark" href="#top"><span class="mark" aria-hidden="true">E</span> <span data-l10n="brand">Enigma Workshop</span></a>
+      <nav aria-label="Main navigation" data-l10n-aria="navigation">
+        <a href="#workshop" data-l10n="simulator">Simulator</a><a href="#mechanism" data-l10n="mechanics">Mechanism</a><a href="#archives" data-l10n="history">History</a>
+      </nav>
+      <div class="nav-options">
+      <select id="language" data-l10n-aria="language" aria-label="Language">
+        <option value="en" lang="en">English</option><option value="fr" lang="fr">Français</option><option value="de" lang="de">Deutsch</option>
+      </select>
+      <div class="theme-control">
+        <label for="theme" data-l10n="palette">Palette</label>
+        <select id="theme" aria-label="Country palette" data-l10n-aria="paletteName">
+          <option value="de" data-l10n="countryDE">Germany</option><option value="pl" data-l10n="countryPL">Poland</option>
+          <option value="fr" data-l10n="countryFR">France</option><option value="gb" data-l10n="countryGB">United Kingdom</option><option value="no" data-l10n="countryNO">Norway</option>
+        </select>
+      </div>
+      </div>
+    </div>
+  </header>
+  <main id="top" class="wrap">
+    <section class="intro" aria-labelledby="title">
+      <div>
+        <p class="eyebrow"><span aria-hidden="true"></span> <span data-l10n="eyebrow">Electromechanical cryptography</span></p>
+        <h1 id="title"><span data-l10n="heroFirst">Enigma</span> <em data-l10n="heroSecond">Workshop</em></h1>
+        <p class="lede"><span data-l10n="ledeFirst"></span><br class="wide"> <span data-l10n="ledeSecond"></span></p>
+      </div>
+      <a class="archive-link" href="#archives"><span data-l10n="explore">Explore the history</span> <span aria-hidden="true">↘</span></a>
+    </section>
+
+    <section class="lab" id="workshop" aria-label="Enigma simulator" data-l10n-aria="lab">
+      <div class="section-bar">
+        <h2 data-l10n="chooseMachine">Choose a machine</h2>
+        <span class="minor" id="model-use"></span>
+      </div>
+      <div id="models" class="model-strip" role="group" aria-label="Enigma models" data-l10n-aria="models"></div>
+
+      <div class="workbench">
+        <section class="panel visual" aria-labelledby="scene-title">
+          <header class="panel-head">
+            <div><span class="eyebrow tiny" data-l10n="scene">3D view</span><h2 id="scene-title">Enigma I</h2></div>
+            <button id="explode" class="ghost" type="button" aria-pressed="false"><span aria-hidden="true">◇</span> <span data-l10n="exploded">Exploded view</span></button>
+          </header>
+          <div class="viewport">
+            <div id="scene-fallback" class="scene-fallback" hidden>
+              <p data-l10n="fallback"></p>
+              <div class="fallback-board">
+                <span><small data-l10n="keyStage">Key</small><strong id="fallback-key">—</strong></span>
+                <span aria-hidden="true">→</span>
+                <span><small data-l10n="rotor">Rotor</small><strong id="fallback-positions">—</strong></span>
+                <span aria-hidden="true">→</span>
+                <span><small data-l10n="lamp">Lamp</small><strong id="fallback-lamp">—</strong></span>
+              </div>
+            </div>
+            <canvas id="machine" role="img" aria-label="A schematic 3D Enigma. The rotors step and the output lamp lights for each letter." data-l10n-aria="image"></canvas>
+            <span class="viewport-index" id="scene-index" aria-hidden="true"></span>
+            <div class="camera" aria-label="Camera orientation" data-l10n-aria="orientation">
+              <button type="button" id="turn-left" aria-label="Rotate left" data-l10n-aria="turnLeft">↶</button>
+              <button type="button" id="turn-right" aria-label="Rotate right" data-l10n-aria="turnRight">↷</button>
+              <button type="button" id="reset-view" aria-label="Reset view" data-l10n-aria="resetView">⌖</button>
+            </div>
+          </div>
+          <div class="scene-foot">
+            <p id="model-description"></p>
+            <div class="windows" id="windows" aria-label="Current rotor positions" data-l10n-aria="windows"></div>
+          </div>
+        </section>
+
+        <section class="panel console" aria-labelledby="console-title">
+          <header class="panel-head">
+            <div><span class="eyebrow tiny" data-l10n="operator">Operator</span><h2 id="console-title" data-l10n="transmit">Transmit</h2></div>
+            <span class="status-light"><i aria-hidden="true"></i> <span id="console-status" data-l10n="ready">Ready</span></span>
+          </header>
+          <div class="modes" role="group" aria-label="Operation" data-l10n-aria="operation">
+            <button type="button" id="encode" aria-pressed="true" data-l10n="encode">Encrypt</button>
+            <button type="button" id="decode" aria-pressed="false" data-l10n="decode">Decrypt</button>
+          </div>
+          <div class="field-top">
+            <label for="input" id="input-label" data-l10n="clear">Plaintext</label>
+            <button class="text-button" id="example" type="button" data-l10n="example">Load an example</button>
+          </div>
+          <textarea id="input" rows="3" maxlength="5000" placeholder="Type a message…" data-l10n-placeholder="messagePlaceholder" spellcheck="false" aria-describedby="normalization"></textarea>
+          <div class="field-meta"><span id="normalization" data-l10n="normalization">Letters become A–Z. Other characters are skipped.</span><span id="count"></span></div>
+          <div class="field-top">
+            <label for="output" id="output-label" data-l10n="cipher">Ciphertext</label>
+            <button class="text-button" id="copy" type="button" disabled data-l10n="copy">Copy</button>
+          </div>
+          <textarea id="output" rows="3" readonly placeholder="The result will appear here." data-l10n-placeholder="resultPlaceholder"></textarea>
+          <p class="feedback" id="feedback" role="status"></p>
+          <button id="run" type="button" class="primary"><span id="run-label" data-l10n="runEncode">Encrypt message</span><span aria-hidden="true">→</span></button>
+          <div class="transport">
+            <button id="step" type="button" class="ghost" data-l10n="step">One letter</button>
+            <button id="play" type="button" class="ghost" aria-pressed="false" data-l10n="play">▶ Animate</button>
+            <button id="reverse" type="button" class="ghost" disabled title="Use the same starting settings in the other mode" data-l10n-title="reverseTitle" data-l10n="reverse">⇄ Reverse</button>
+          </div>
+        </section>
+      </div>
+
+      <div class="workbench lower" id="mechanism">
+        <section class="panel settings" aria-labelledby="settings-title">
+          <header class="panel-head"><div><span class="eyebrow tiny" data-l10n="key">Message key</span><h2 id="settings-title" data-l10n="settings">Settings</h2></div><button id="reset" class="text-button" type="button" data-l10n="defaults">Reset defaults</button></header>
+          <div class="settings-body">
+            <div id="rotor-settings"></div>
+            <div class="settings-pair">
+              <label><span data-l10n="reflector">Reflector</span><select id="reflector"></select></label>
+              <label><span data-l10n="plugs">Plugboard</span><input id="plugs" type="text" placeholder="AM FI NV" maxlength="64" autocapitalize="characters" spellcheck="false" aria-describedby="settings-help settings-error"></label>
+            </div>
+            <p class="note" id="settings-help" data-l10n="settingsHelp">Read the rotors from left to right. The ring setting shifts the wiring relative to the visible letter. Decryption uses the original key.</p>
+            <p class="error" id="settings-error" role="alert"></p>
+          </div>
+        </section>
+        <section class="panel signal" aria-labelledby="signal-title">
+          <header class="panel-head"><div><span class="eyebrow tiny" data-l10n="signal">Signal path</span><h2 id="signal-title" data-l10n="circuit">The circuit</h2></div><span class="signal-focus" id="signal-focus">— → —</span></header>
+          <div class="signal-body">
+            <p class="note" id="signal-note" data-l10n="signalInitial">The rotors step before the circuit closes. Process a letter to trace the outgoing and returning signal.</p>
+            <ol class="signal-path" id="signal-path" aria-label="Signal stages" data-l10n-aria="signalStages"></ol>
+            <button class="ghost" id="double-step" type="button" data-l10n="doubleStep">Try the double step</button>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="archives" class="archives" aria-labelledby="archive-title">
+      <p class="eyebrow"><span aria-hidden="true"></span> <b data-l10n="archiveEyebrow">Archives</b></p>
+      <h2 id="archive-title" data-l10n="archivesTitle">From cipher machine to codebreaking.</h2>
+      <p class="lede history-intro" data-l10n="historyIntro">Who used Enigma, who broke it and how their work came together.</p>
+      <div class="history-grid" id="history">
+        <article class="history-card" data-country="de">
+          <small data-history="army.date"></small><h3 data-history="army.title"></h3>
+          <p data-history="army.body"></p>
+          <div class="archive-actions">
+            <a href="https://www.cryptomuseum.com/crypto/enigma/i/index.htm">Crypto Museum ↗</a>
+            <a href="https://cryptocellar.org/enigma/e-message-1930.html" data-l10n="manualLink">1930 manual ↗</a>
+            <button id="historic-example" class="text-button" type="button" data-l10n="manualButton">Read the test message →</button>
+          </div>
+        </article>
+        <article class="history-card" data-country="fr">
+          <small data-history="french.date"></small><h3 data-history="french.title"></h3>
+          <p data-history="french.body"></p>
+          <a href="https://www.nsa.gov/portals/75/documents/news-features/declassified-documents/cryptologic-quarterly/the_sting.pdf" data-l10n="nsa">NSA archive ↗</a>
+        </article>
+        <article class="history-card" data-country="pl">
+          <small data-history="polish.date"></small><h3 data-history="polish.title"></h3>
+          <p data-history="polish.body"></p>
+          <a href="https://aw.gov.pl/en/history/enigma-decryption/183%2CEnigma-decryption.html" data-l10n="polishIntelligence">Polish intelligence service ↗</a>
+        </article>
+        <article class="history-card" data-country="gb">
+          <small data-history="british.date"></small><h3 data-history="british.title"></h3>
+          <p data-history="british.body"></p>
+          <a href="https://www.gchq.gov.uk/sites/default/files/pdfs/publication/the-pyry-forest-meeting.pdf">GCHQ ↗</a>
+        </article>
+        <article class="history-card" data-country="de">
+          <small data-history="atlantic.date"></small><h3 data-history="atlantic.title"></h3>
+          <p data-history="atlantic.body"></p>
+          <div class="archive-actions">
+            <a href="https://www.cryptomuseum.com/crypto/enigma/m4/index.htm">Crypto Museum ↗</a>
+            <a href="https://www.bytereef.org/m4-project-first-break.html" data-l10n="navalLink">U-264 archive ↗</a>
+            <button id="naval-example" class="text-button" type="button" data-l10n="navalButton">Read the message excerpt →</button>
+          </div>
+        </article>
+        <article class="history-card" data-country="no">
+          <small data-history="norway.date"></small><h3 data-history="norway.title"></h3>
+          <p data-history="norway.body"></p>
+          <a href="https://www.cryptomuseum.com/crypto/enigma/wiring.htm" data-l10n="wiringLink">Crypto Museum wiring ↗</a>
+        </article>
+      </div>
+    </section>
+  </main>
+  <footer class="wrap footer"><span data-l10n="footerBrand">Enigma Workshop · Historical simulator</span><span data-l10n="localOnly">Messages are processed in your browser.</span></footer>
+  <noscript><p class="wrap" data-l10n="noScript">Enable JavaScript to use the simulator and the 3D view.</p></noscript>
+</body>
+</html>
